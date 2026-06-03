@@ -1,35 +1,169 @@
 from fastapi import APIRouter
+from pydantic import BaseModel
+
+import sys
+import os
 
 
 from app.database.supabase_client import supabase
 
-from app.schemas.complaint_schema import ComplaintCreate
+
+# connect ml_model folder
+
+BASE_DIR = os.path.dirname(
+    os.path.dirname(
+        os.path.dirname(
+            os.path.dirname(__file__)
+        )
+    )
+)
+
+
+ML_PATH = os.path.join(
+    BASE_DIR,
+    "ml_model"
+)
+
+
+sys.path.append(
+    ML_PATH
+)
+
+
+from predict import predict_department
+from fraud_detection import detect_fraud
 
 
 
-router=APIRouter()
+router = APIRouter(
+    prefix="/complaints",
+    tags=["Complaints"]
+)
+
+
+
+class Complaint(BaseModel):
+
+    user_id: str
+
+    title: str
+
+    description: str
+
+    latitude: float
+
+    longitude: float
+
 
 
 
 @router.post("/add")
 
 def add_complaint(
-    complaint:ComplaintCreate
+    complaint: Complaint
 ):
 
 
-    data=complaint.model_dump()
+    # --------------------
+    # AI prediction
+    # --------------------
 
 
-    result=supabase.table(
-        "complaints"
-    ).insert(
-        data
-    ).execute()
+    prediction = predict_department(
+        complaint.title,
+        complaint.description
+    )
 
 
-    return result.data
+    department = prediction[
+        "department"
+    ]
 
+
+
+    fraud_score = detect_fraud(
+        complaint.description
+    )
+
+
+
+    # --------------------
+    # Save to Supabase
+    # --------------------
+
+
+    data={
+
+        "user_id":
+        complaint.user_id,
+
+
+        "title":
+        complaint.title,
+
+
+        "description":
+        complaint.description,
+
+
+        "latitude":
+        complaint.latitude,
+
+
+        "longitude":
+        complaint.longitude,
+
+
+        "predicted_department":
+        department,
+
+
+        "fraud_score":
+        fraud_score,
+
+
+        "severity_score":
+        50,
+
+
+        "priority":
+        "Medium",
+
+
+        "status":
+        "Pending"
+
+    }
+
+
+
+    response = (
+        supabase
+        .table("complaints")
+        .insert(data)
+        .execute()
+    )
+
+
+
+    return {
+
+        "message":
+        "Complaint submitted successfully",
+
+
+        "AI_department":
+        department,
+
+
+        "fraud_score":
+        fraud_score,
+
+
+        "saved":
+        response.data
+
+    }
 
 
 
@@ -38,10 +172,12 @@ def add_complaint(
 def all_complaints():
 
 
-    data=supabase.table(
-        "complaints"
-    ).select("*").execute()
+    result=(
+        supabase
+        .table("complaints")
+        .select("*")
+        .execute()
+    )
 
 
-
-    return data.data
+    return result.data
