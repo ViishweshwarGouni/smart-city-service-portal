@@ -19,20 +19,17 @@ app=FastAPI(
 
 
 
-origins = [
-    "https://smart-city-service-portal-1.onrender.com",
-    "http://localhost:5173",
-    "http://127.0.0.1:5173",
-]
-
 app.add_middleware(
-    CORSMiddleware,
-    allow_origins=origins,  # Allows your live frontend domain to make requests
-    allow_credentials=True,
-    allow_methods=["*"],    # Allows GET, POST, OPTIONS, etc.
-    allow_headers=["*"],    # Allows Content-Type, Authorization, etc.
-)
 
+CORSMiddleware,
+
+allow_origins=["*"],
+
+allow_methods=["*"],
+
+allow_headers=["*"]
+
+)
 
 
 app.include_router(
